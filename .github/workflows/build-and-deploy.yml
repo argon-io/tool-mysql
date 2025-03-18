@@ -1,0 +1,102 @@
+name: Build, Version, Release, and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-version-release-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Create ZIP Package
+        run: |
+          cd dist
+          zip -r ../dist.zip .
+          cd ../
+
+      # - name: Bump version
+      #   run: |
+      #     pnpm version patch -m "Release v%s" # You can change 'patch' to 'minor' or 'major' depending on your needs
+      #     git push --follow-tags
+
+      # - name: Create GitHub Release
+      #   run: |
+      #     VERSION=$(node -p "require('./package.json').version")
+      #     gh release create "v$VERSION" dist/index.js --title "v$VERSION" --notes "Release version $VERSION" --prerelease
+
+      - name: Get Existing Function ID
+        id: existing-functions
+        uses: scaleway/action-scw@v0
+        with:
+          version: v2.37.0
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          args:
+            function function list
+              name=${{ github.event.repository.name }}
+              region=fr-par
+
+      - name: Get Existing Function ID
+        id: function-id
+        run: echo ${{ fromJSON(steps.existing-functions.outputs.json)[0].id }} >> $GITHUB_OUTPUT
+
+      - name: Create New Function
+        if: ${{ steps.function-id.outputs == '' }}
+        uses: scaleway/action-scw@v0
+        with:
+          version: v2.37.0
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          args:
+            function function create
+              namespace-id=${{ secrets.SCW_FUNCTION_TOOLS_NAMESPACE_ID }}
+              name=${{ github.event.repository.name }}
+              min-scale=0
+              max-scale=10
+              runtime=node22
+              memory-limit=256
+              timeout=10s
+              handler=index.handler
+              privacy=public
+              sandbox=v2
+              region=fr-par
+
+      - name: Deploy Function
+        uses: scaleway/action-scw@v0
+        with:
+          version: v2.37.0
+          access-key: ${{ secrets.SCW_ACCESS_KEY }}
+          secret-key: ${{ secrets.SCW_SECRET_KEY }}
+          default-organization-id: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+          default-project-id: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          args:
+            function function deploy
+              name=${{ github.event.repository.name }}
+              runtime=node22
+              zip=dist.zip
+              region=fr-par

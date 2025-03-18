@@ -1,0 +1,22 @@
+{
+  "name": "@argon/tool-calculator",
+  "version": "1.0.1",
+  "description": "",
+  "scripts": {
+    "build": "esbuild src/index.ts --format=esm --bundle --minify --platform=node --outfile=dist/index.js",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.13.0",
+    "zod": "^3.24.2",
+    "zod-openapi": "^4.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/scaleway-functions": "^1.0.3",
+    "esbuild": "^0.25.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  }
+}
