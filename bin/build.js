@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 try {
   await build({
     bundle: true,
-    sourcemap: true,
     format: "esm",
     minify: true,
     external: ["__STATIC_CONTENT_MANIFEST"],
