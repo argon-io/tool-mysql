@@ -11,6 +11,7 @@ export default async function executeQuery(settings: z.infer<typeof config>, que
       user: settings.username,
       password: settings.password,
       database: settings.database,
+      port: settings.port,
     });
   } catch (err) {
     return `SQLSTATE[${(err as any).sqlState}]: Failed to connect to the database.`;

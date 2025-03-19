@@ -2,6 +2,7 @@ import type { Event, Response } from 'scaleway-functions';
 import { payload, result } from './types';
 import { createDocument } from 'zod-openapi';
 import executeQuery from './executeQuery';
+import { z } from 'zod';
 
 function get(): Response {
   return {
@@ -29,16 +30,42 @@ function get(): Response {
                 },
               },
             },
+            security: [
+              {
+                ApiKeyAuth: [],
+              },
+            ],
           },
         }
+      },
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'authorization',
+            bearerFormat: 'base64',
+            description: 'Example: mysql://username:password@host:port/databasename',
+          },
+        },
       },
     }),
   };
 }
 
+const authSchema = z.object({
+  hostname: z.string(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  pathname: z.string().optional(),
+  port: z.string().optional(),
+  protocol: z.literal('mysql:'),
+});
+
 async function post(event: Event): Promise<Response> {
   try {
-    const auth = event.headers.authorization; // @todo: Use OAuth2 to store secrets behind encryption.
+    const decodedAuth = Buffer.from((event.headers.authorization.toString()).split(' ').pop()!, 'base64').toString('utf-8');
+    const auth = authSchema.parse(new URL(decodedAuth));
     const data = payload.parse(JSON.parse(event.body));
 
     return {
@@ -46,7 +73,13 @@ async function post(event: Event): Promise<Response> {
         'content-type': 'application/json',
       },
       body: {
-        result: await executeQuery(auth as any, data.query),
+        result: await executeQuery({
+          host: auth.hostname,
+          username: auth.username,
+          password: auth.password,
+          database: auth.pathname ? auth.pathname.substring(1) : undefined,
+          port: auth.port ? Number(auth.port) : undefined,
+        }, data.query),
       },
       statusCode: 200,
     };

@@ -6,9 +6,10 @@ export const payload = z.object({
 
 export const config = z.object({
   host: z.string(),
-  username: z.string(),
-  password: z.string(),
-  database: z.string(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  database: z.string().optional(),
+  port: z.number().optional(),
 });
 
 export const result = z.object({
